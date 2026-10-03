@@ -1260,17 +1260,21 @@ const htmlContent = `<!DOCTYPE html>
     </div>
 
     <div class="scanner-tip">
-      Centra la etiqueta con el código de barras en el visor
+      Centrá el código de barras 1D de la prenda (CODE 128, EAN 13, CODE 39, UPC) o QR • 20 FPS
     </div>
 
     <div class="scanner-controls">
       <div class="scanner-btn-row">
         <button id="switchCameraBtn" class="scanner-tool-btn">
-          🔄 Cambiar Cámara
+          🔄 Alternar Cámara
         </button>
         <button id="torchBtn" class="scanner-tool-btn">
           🔦 Linterna
         </button>
+        <button id="uploadTagBtn" class="scanner-tool-btn">
+          🖼️ Foto Etiqueta
+        </button>
+        <input type="file" id="tagFileInput" accept="image/*" style="display:none;" />
       </div>
 
       <!-- Quick Codes Simulator for Desktop testing -->
@@ -1777,17 +1781,52 @@ const htmlContent = `<!DOCTYPE html>
       modal.classList.remove('open');
     }
 
+    // Lista explícita de formatos 1D y 2D requeridos para indumentaria
+    function getSupportedBarcodeFormats() {
+      if (typeof Html5QrcodeSupportedFormats !== 'undefined') {
+        return [
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93,
+          Html5QrcodeSupportedFormats.CODABAR,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.QR_CODE
+        ];
+      }
+      return undefined;
+    }
+
     async function startCamera() {
       if (isScanning) return;
       try {
+        const supportedFormats = getSupportedBarcodeFormats();
+
+        // Configurar Html5Qrcode con formatos 1D explícitos y soporte para BarcodeDetector de hardware
         if (!html5QrCode) {
-          html5QrCode = new Html5Qrcode("reader");
+          html5QrCode = new Html5Qrcode("reader", {
+            formatsToSupport: supportedFormats,
+            verbose: false,
+            experimentalFeatures: {
+              useBarCodeDetectorIfSupported: true // Decodificación nativa ultra rápida por hardware
+            }
+          });
         }
 
         const config = {
-          fps: 15,
-          qrbox: { width: 300, height: 160 },
-          aspectRatio: 1.333333
+          fps: 20, // 20 FPS para lectura ultra rápida y sensible al movimiento
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            // Formato apaisado amplio optimizado para códigos de barra horizontales en etiquetas
+            const width = Math.floor(viewfinderWidth * 0.88);
+            const height = Math.floor(Math.min(220, Math.max(130, viewfinderHeight * 0.45)));
+            return { width, height };
+          },
+          aspectRatio: 1.333333,
+          disableFlip: false
         };
 
         await html5QrCode.start(
@@ -1804,6 +1843,38 @@ const htmlContent = `<!DOCTYPE html>
       } catch (err) {
         console.warn('Error al iniciar la cámara:', err);
         showToast('Permiso de cámara denegado o no disponible', '⚠️');
+      }
+    }
+
+    async function handleTagFileUpload(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      try {
+        showToast('Analizando código de la prenda...', '🔍');
+        if (!html5QrCode) {
+          const supportedFormats = getSupportedBarcodeFormats();
+          html5QrCode = new Html5Qrcode("reader", {
+            formatsToSupport: supportedFormats,
+            verbose: false,
+            experimentalFeatures: {
+              useBarCodeDetectorIfSupported: true
+            }
+          });
+        }
+        
+        // Detener cámara si estaba corriendo para procesar el archivo
+        if (isScanning) {
+          await stopCamera();
+        }
+
+        const decodedText = await html5QrCode.scanFile(file, true);
+        onBarcodeDetected(decodedText);
+      } catch (err) {
+        console.warn('Error al decodificar foto:', err);
+        showToast('No se detectó un código nítido en la foto', '⚠️');
+      } finally {
+        event.target.value = '';
       }
     }
 
@@ -1992,6 +2063,10 @@ const htmlContent = `<!DOCTYPE html>
       document.getElementById('closeScannerBtn').addEventListener('click', closeScanner);
       document.getElementById('switchCameraBtn').addEventListener('click', switchCamera);
       document.getElementById('torchBtn').addEventListener('click', toggleTorch);
+      document.getElementById('uploadTagBtn')?.addEventListener('click', () => {
+        document.getElementById('tagFileInput')?.click();
+      });
+      document.getElementById('tagFileInput')?.addEventListener('change', handleTagFileUpload);
 
       // Calculator triggers
       document.getElementById('calcHeaderBtn').addEventListener('click', openQuickCalc);

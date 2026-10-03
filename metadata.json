@@ -1,0 +1,10 @@
+{
+  "name": "Ossira Gurruchaga - Gestor de Precios y Stock",
+  "description": "PWA para gestión ágil de precios, stock, liquidaciones y escáner de códigos de barras para Ossira Gurruchaga.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

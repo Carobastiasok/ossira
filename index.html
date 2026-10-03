@@ -1,0 +1,5426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Ossira Gurruchaga - Gestor de Precios y Stock</title>
+  <meta name="description" content="PWA para consulta ágil de precios, stock, liquidaciones y escáner de códigos de barras para Ossira Gurruchaga." />
+  <meta property="og:title" content="Ossira Gurruchaga - Gestor de Precios y Stock" />
+  <meta property="og:description" content="PWA para consulta ágil de precios, liquidaciones y escáner de códigos de barras para Ossira Gurruchaga." />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#18181B" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Ossira" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="/public/icon.svg" />
+  <link rel="apple-touch-icon" href="/public/apple-touch-icon.png" />
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+
+  <!-- HTML5 QR Code Library for Barcode Scanning -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --bg-page: #F8F9FA;
+      --bg-card: #FFFFFF;
+      --text-main: #18181B;
+      --text-muted: #71717A;
+      --text-subtle: #A1A1AA;
+      --border-color: #E4E4E7;
+      --brand-dark: #18181B;
+      --brand-accent: #E11D48; /* Chic rose/fuchsia accent */
+      --discount-50: #E11D48;
+      --discount-40: #EA580C;
+      --discount-25: #0D9488;
+      --discount-0: #4B5563;
+      --safe-area-inset-top: env(safe-area-inset-top, 0px);
+      --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding-bottom: calc(80px + var(--safe-area-inset-bottom));
+      overflow-x: hidden;
+    }
+
+    /* Top Sticky Navigation */
+    .sticky-header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: 0 4px 20px -8px rgba(0, 0, 0, 0.05);
+      padding-top: var(--safe-area-inset-top);
+    }
+
+    .brand-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px 8px 16px;
+    }
+
+    .brand-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--brand-dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .brand-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      background: #18181B;
+      color: #FFFFFF;
+      padding: 2px 7px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+    }
+
+    .brand-location {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      background: #F4F4F5;
+      border: 1px solid #E4E4E7;
+      color: #27272A;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-size: 1rem;
+    }
+
+    .icon-btn:active {
+      transform: scale(0.94);
+      background: #E4E4E7;
+    }
+
+    /* Fixed Search Bar */
+    .search-container {
+      padding: 6px 16px 10px 16px;
+      position: relative;
+    }
+
+    .search-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      background: #FFFFFF;
+      border: 2px solid #18181B;
+      border-radius: 16px;
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
+      transition: all 0.2s ease;
+    }
+
+    .search-wrapper:focus-within {
+      box-shadow: 0 4px 16px rgba(225, 29, 72, 0.15);
+      border-color: #E11D48;
+    }
+
+    .search-icon-left {
+      position: absolute;
+      left: 14px;
+      color: #71717A;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 14px 96px 14px 44px;
+      border: none;
+      background: transparent;
+      font-size: 0.98rem;
+      font-family: inherit;
+      color: var(--text-main);
+      outline: none;
+      font-weight: 500;
+    }
+
+    .search-input::placeholder {
+      color: #A1A1AA;
+      font-weight: 400;
+      font-size: 0.88rem;
+    }
+
+    .search-actions-right {
+      position: absolute;
+      right: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .clear-search-btn {
+      background: transparent;
+      border: none;
+      color: #A1A1AA;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .clear-search-btn.visible {
+      display: flex;
+    }
+
+    .scan-trigger-btn {
+      background: #18181B;
+      color: #FFFFFF;
+      border: none;
+      height: 40px;
+      padding: 0 14px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.02em;
+    }
+
+    .scan-trigger-btn:hover {
+      background: #27272A;
+    }
+
+    .scan-trigger-btn:active {
+      transform: scale(0.95);
+      background: #E11D48;
+    }
+
+    /* Filter Chips Bar */
+    .filter-scroll-bar {
+      display: flex;
+      gap: 8px;
+      padding: 4px 16px 12px 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      white-space: nowrap;
+    }
+
+    .filter-scroll-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .filter-chip {
+      background: #FFFFFF;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 7px 13px;
+      border-radius: 9999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .filter-chip.active {
+      background: #18181B;
+      color: #FFFFFF;
+      border-color: #18181B;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+
+    .filter-chip.discount-50.active {
+      background: #E11D48;
+      border-color: #E11D48;
+    }
+
+    .filter-chip.discount-40.active {
+      background: #EA580C;
+      border-color: #EA580C;
+    }
+
+    .filter-chip.discount-25.active {
+      background: #0D9488;
+      border-color: #0D9488;
+    }
+
+    /* Meta stats bar */
+    .stats-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .stats-count strong {
+      color: var(--text-main);
+      font-weight: 700;
+    }
+
+    .sort-select {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 8px;
+      color: var(--text-main);
+      font-family: inherit;
+      font-weight: 600;
+      outline: none;
+    }
+
+    /* Product Cards Container */
+    .products-container {
+      padding: 4px 16px 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 640px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Large touch-friendly Product Card */
+    .product-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      padding: 16px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+      position: relative;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+
+    .product-card:active {
+      transform: scale(0.99);
+    }
+
+    .product-card.scanned-highlight {
+      animation: pulseHighlight 2s ease infinite;
+      border-color: #10B981 !important;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3) !important;
+    }
+
+    @keyframes pulseHighlight {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+      100% { transform: scale(1); }
+    }
+
+    .card-top-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .code-badge-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .article-code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: #09090B;
+    }
+
+    .copy-code-btn {
+      background: #F4F4F5;
+      border: none;
+      color: #71717A;
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.75rem;
+      transition: background 0.15s;
+    }
+
+    .copy-code-btn:active {
+      background: #E4E4E7;
+      color: #18181B;
+    }
+
+    .promo-tag {
+      background: #FEF3C7;
+      color: #92400E;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid #FDE68A;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Code breakdown row */
+    .code-breakdown {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 12px;
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+    }
+
+    .breakdown-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      background: #F4F4F5;
+      padding: 3px 7px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    .breakdown-label {
+      color: #71717A;
+      font-weight: 500;
+    }
+
+    .breakdown-val {
+      color: #18181B;
+      font-weight: 700;
+    }
+
+    /* Typology Badges */
+    .typology-tag {
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 4px 9px;
+      border-radius: 8px;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .typo-jean { background: #EEF2FF; color: #4338CA; border: 1px solid #C7D2FE; }
+    .typo-remeras { background: #F0F9FF; color: #0369A1; border: 1px solid #BAE6FD; }
+    .typo-calzados { background: #FAF5FF; color: #7E22CE; border: 1px solid #E9D5FF; }
+    .typo-camisas { background: #FDF2F8; color: #BE185D; border: 1px solid #FBCFE8; }
+    .typo-vestidos { background: #FFF1F2; color: #BE123C; border: 1px solid #FECDD3; }
+    .typo-abrigos { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+    .typo-pantalon { background: #ECFEFF; color: #0E7490; border: 1px solid #A5F3FC; }
+    .typo-otro { background: #F4F4F5; color: #3F3F46; border: 1px solid #E4E4E7; }
+
+    /* Price Section */
+    .card-price-section {
+      background: #FAFAFA;
+      border: 1px solid #F4F4F5;
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .price-left {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .price-original-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.84rem;
+      color: #71717A;
+      margin-bottom: 2px;
+    }
+
+    .original-price-strike {
+      text-decoration: line-through;
+      font-weight: 500;
+    }
+
+    .price-final-row {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+    }
+
+    .price-final-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #52525B;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .price-final-amount {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #09090B;
+      letter-spacing: -0.02em;
+    }
+
+    .savings-pill {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #047857;
+      background: #D1FAE5;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-top: 2px;
+      display: inline-block;
+    }
+
+    /* Discount Badges */
+    .discount-badge-large {
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 1.05rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      line-height: 1.1;
+      min-width: 72px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .badge-50 {
+      background: #FFF1F2;
+      color: #BE123C;
+      border: 1.5px solid #FDA4AF;
+    }
+
+    .badge-40 {
+      background: #FFF7ED;
+      color: #C2410C;
+      border: 1.5px solid #FDBA74;
+    }
+
+    .badge-25 {
+      background: #F0FDFA;
+      color: #0F766E;
+      border: 1.5px solid #99F6E4;
+    }
+
+    .badge-0 {
+      background: #F4F4F5;
+      color: #52525B;
+      border: 1.5px solid #D4D4D8;
+    }
+
+    /* Inline Simulator for items without original price */
+    .inline-calc-box {
+      background: #F9FAFB;
+      border: 1px dashed #CBD5E1;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-top: 6px;
+      font-size: 0.8rem;
+    }
+
+    .inline-calc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #475569;
+      font-weight: 600;
+      margin-bottom: 6px;
+      font-size: 0.75rem;
+    }
+
+    .inline-calc-inputs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .inline-price-input {
+      width: 100%;
+      background: #FFFFFF;
+      border: 1px solid #CBD5E1;
+      border-radius: 8px;
+      padding: 7px 10px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #0F172A;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .inline-price-input:focus {
+      border-color: #18181B;
+    }
+
+    .inline-calc-result {
+      font-weight: 800;
+      font-size: 1rem;
+      color: #BE123C;
+      white-space: nowrap;
+    }
+
+    /* Card Bottom Action Buttons */
+    .card-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .action-btn {
+      flex: 1;
+      height: 38px;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+      background: #FFFFFF;
+      color: var(--text-main);
+      font-size: 0.78rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .action-btn:active {
+      transform: scale(0.97);
+      background: #F4F4F5;
+    }
+
+    .action-btn.whatsapp-btn {
+      background: #25D366;
+      color: #FFFFFF;
+      border-color: #25D366;
+    }
+
+    .action-btn.whatsapp-btn:active {
+      background: #1EBE5D;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      background: #FFFFFF;
+      border-radius: 20px;
+      border: 1px dashed var(--border-color);
+      margin-top: 16px;
+    }
+
+    .empty-icon {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+    }
+
+    .empty-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #18181B;
+      margin-bottom: 6px;
+    }
+
+    .empty-desc {
+      font-size: 0.85rem;
+      color: #71717A;
+      max-width: 320px;
+      margin: 0 auto 16px auto;
+    }
+
+    .reset-filters-btn {
+      background: #18181B;
+      color: #FFFFFF;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* Scanner Modal */
+    .scanner-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.92);
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: calc(16px + var(--safe-area-inset-top)) 16px calc(24px + var(--safe-area-inset-bottom)) 16px;
+      backdrop-filter: blur(8px);
+    }
+
+    .scanner-modal.open {
+      display: flex;
+    }
+
+    .scanner-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #FFFFFF;
+    }
+
+    .scanner-title {
+      font-size: 1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .scanner-close-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: #FFFFFF;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+
+    .scanner-viewport-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
+      margin: auto;
+      border-radius: 20px;
+      overflow: hidden;
+      background: #000;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      aspect-ratio: 4 / 3;
+    }
+
+    #reader {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    #reader video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: cover !important;
+      border-radius: 18px;
+    }
+
+    /* Red Laser Target Overlay */
+    .scanner-laser-line {
+      position: absolute;
+      top: 50%;
+      left: 10%;
+      right: 10%;
+      height: 2px;
+      background: #E11D48;
+      box-shadow: 0 0 12px 2px #E11D48;
+      animation: laserMove 2s ease-in-out infinite;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    @keyframes laserMove {
+      0%, 100% { top: 20%; opacity: 0.3; }
+      50% { top: 80%; opacity: 1; }
+    }
+
+    .scanner-corner {
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      border-color: #FFFFFF;
+      border-style: solid;
+      pointer-events: none;
+      z-index: 6;
+    }
+
+    .corner-tl { top: 20px; left: 20px; border-width: 3px 0 0 3px; }
+    .corner-tr { top: 20px; right: 20px; border-width: 3px 3px 0 0; }
+    .corner-bl { bottom: 20px; left: 20px; border-width: 0 0 3px 3px; }
+    .corner-br { bottom: 20px; right: 20px; border-width: 0 3px 3px 0; }
+
+    .scanner-tip {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.85rem;
+      text-align: center;
+      margin-top: 12px;
+      font-weight: 500;
+    }
+
+    .scanner-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 420px;
+      margin: 0 auto;
+    }
+
+    .scanner-btn-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .scanner-tool-btn {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #FFFFFF;
+      padding: 12px;
+      border-radius: 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    /* Simulation test pills in modal for desktop testing */
+    .test-codes-box {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .test-codes-title {
+      font-size: 0.72rem;
+      color: rgba(255, 255, 255, 0.6);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .test-codes-pills {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .test-pill {
+      background: rgba(255, 255, 255, 0.2);
+      color: #FFFFFF;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-family: monospace;
+      cursor: pointer;
+    }
+
+    /* Bottom Quick Action Bar */
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 30;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border-color);
+      padding: 10px 16px calc(10px + var(--safe-area-inset-bottom)) 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
+    }
+
+    .bottom-nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      background: transparent;
+      border: none;
+      color: #71717A;
+      font-size: 0.7rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 4px 12px;
+      border-radius: 10px;
+      transition: all 0.15s ease;
+    }
+
+    .bottom-nav-item.active,
+    .bottom-nav-item:active {
+      color: #18181B;
+      background: #F4F4F5;
+    }
+
+    .bottom-nav-item svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    /* Global Discount Calculator Modal */
+    .calculator-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+
+    .calculator-modal.open {
+      display: flex;
+    }
+
+    .calculator-sheet {
+      background: #FFFFFF;
+      width: 100%;
+      max-width: 500px;
+      border-radius: 24px 24px 0 0;
+      padding: 20px 20px calc(24px + var(--safe-area-inset-bottom)) 20px;
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.15);
+      animation: slideUp 0.25s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .sheet-handle {
+      width: 40px;
+      height: 4px;
+      background: #E4E4E7;
+      border-radius: 2px;
+      margin: 0 auto 16px auto;
+    }
+
+    .sheet-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #18181B;
+      margin-bottom: 4px;
+    }
+
+    .sheet-subtitle {
+      font-size: 0.8rem;
+      color: #71717A;
+      margin-bottom: 16px;
+    }
+
+    /* Toast Notification */
+    .toast-msg {
+      position: fixed;
+      top: calc(20px + var(--safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      z-index: 120;
+      background: #18181B;
+      color: #FFFFFF;
+      padding: 10px 18px;
+      border-radius: 9999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+    }
+
+    .toast-msg.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* PWA Install Banner */
+    .pwa-banner {
+      background: #18181B;
+      color: #FFFFFF;
+      padding: 12px 16px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.82rem;
+    }
+
+    .pwa-banner.visible {
+      display: flex;
+    }
+
+    .pwa-install-btn {
+      background: #E11D48;
+      color: #FFFFFF;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.78rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    /* Info Modal for Google Sheets */
+    .info-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 95;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .info-modal.open {
+      display: flex;
+    }
+
+    .info-card {
+      background: #FFFFFF;
+      width: 100%;
+      max-width: 480px;
+      max-height: 85vh;
+      overflow-y: auto;
+      border-radius: 20px;
+      padding: 20px;
+      position: relative;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 0.78rem;
+      background: #F4F4F5;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast-msg">
+    <span id="toastIcon">✨</span>
+    <span id="toastText">Código copiado al portapapeles</span>
+  </div>
+
+  <!-- PWA Install Banner for Mobile -->
+  <div id="pwaBanner" class="pwa-banner">
+    <div>
+      <strong>Instalar Ossira App</strong>
+      <div style="font-size: 0.72rem; opacity: 0.8;">Acceso directo rápido y modo offline en el local</div>
+    </div>
+    <div style="display:flex; gap:6px; align-items:center;">
+      <button id="pwaInstallBtn" class="pwa-install-btn">Instalar</button>
+      <button onclick="document.getElementById('pwaBanner').style.display='none'" style="background:transparent; border:none; color:#fff; font-size:1.1rem; cursor:pointer;">&times;</button>
+    </div>
+  </div>
+
+  <!-- Sticky Top Header -->
+  <header class="sticky-header">
+    <div class="brand-bar">
+      <div>
+        <div class="brand-title">
+          OSSIRA
+          <span class="brand-badge">Gurruchaga</span>
+        </div>
+        <div class="brand-location">Palermo Soho • Liquidaciones & Stock</div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="calcHeaderBtn" title="Calculadora de Descuentos">
+          🧮
+        </button>
+        <button class="icon-btn" id="infoBtn" title="Información y Google Sheets">
+          ℹ️
+        </button>
+      </div>
+    </div>
+
+    <!-- Searchbar Fixed -->
+    <div class="search-container">
+      <div class="search-wrapper">
+        <div class="search-icon-left">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </div>
+
+        <input 
+          type="search" 
+          id="searchInput" 
+          class="search-input" 
+          placeholder="Buscar código (ej: 4840114), 50%, Jean, 2x1..." 
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        />
+
+        <div class="search-actions-right">
+          <button id="clearSearchBtn" class="clear-search-btn" title="Limpiar búsqueda">
+            &times;
+          </button>
+          
+          <button id="cameraScanBtn" class="scan-trigger-btn" title="Escanear código de barras con la cámara">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+              <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+            <span>Escanear</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scrollable Filter Chips -->
+    <div class="filter-scroll-bar" id="filterChipsContainer">
+      <button class="filter-chip active" data-filter="all">Todos</button>
+      <button class="filter-chip discount-50" data-filter="discount:50">🔥 50% OFF</button>
+      <button class="filter-chip discount-40" data-filter="discount:40">🏷️ 40% OFF</button>
+      <button class="filter-chip discount-25" data-filter="discount:25">✨ 25% OFF</button>
+      <button class="filter-chip" data-filter="discount:0">0% Regular</button>
+      <button class="filter-chip" data-filter="promo:2x1">🎁 Promo 2x1</button>
+      <button class="filter-chip" data-filter="typo:JEAN">👖 Jeans</button>
+      <button class="filter-chip" data-filter="typo:REMERAS">👕 Remeras</button>
+      <button class="filter-chip" data-filter="typo:CALZADOS">👠 Calzados</button>
+      <button class="filter-chip" data-filter="typo:ABRIGOS">🧥 Abrigos</button>
+      <button class="filter-chip" data-filter="typo:CAMISAS">👔 Camisas</button>
+      <button class="filter-chip" data-filter="typo:VESTIDOS">👗 Vestidos</button>
+      <button class="filter-chip" data-filter="typo:PANTALON (NO JEAN)">👖 Pantalones</button>
+      <button class="filter-chip" data-filter="season:49">Temp 49</button>
+      <button class="filter-chip" data-filter="season:48">Temp 48</button>
+      <button class="filter-chip" data-filter="season:47">Temp 47</button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main style="flex: 1;">
+    <!-- Stats & Sort Bar -->
+    <div class="stats-bar" style="max-width: 640px; margin: 0 auto;">
+      <div class="stats-count">
+        Mostrando <strong id="itemCount">0</strong> de <strong id="totalCount">0</strong> artículos
+      </div>
+      <div>
+        <select id="sortSelect" class="sort-select">
+          <option value="code_asc">Código (Asc)</option>
+          <option value="code_desc">Código (Desc)</option>
+          <option value="discount_desc">Mayor Descuento</option>
+          <option value="discount_asc">Menor Descuento</option>
+          <option value="season_desc">Temporada más reciente</option>
+          <option value="price_asc">Precio (Menor a Mayor)</option>
+          <option value="price_desc">Precio (Mayor a Menor)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Products List -->
+    <div class="products-container" id="productsList">
+      <!-- Cards rendered via JS -->
+    </div>
+  </main>
+
+  <!-- Bottom Navigation Bar for Sales Staff -->
+  <nav class="bottom-bar">
+    <button class="bottom-nav-item active" id="navAllItems">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"></rect>
+        <rect x="14" y="3" width="7" height="7"></rect>
+        <rect x="14" y="14" width="7" height="7"></rect>
+        <rect x="3" y="14" width="7" height="7"></rect>
+      </svg>
+      <span>Catálogo</span>
+    </button>
+
+    <button class="bottom-nav-item" id="navScanBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+        <circle cx="12" cy="13" r="4"></circle>
+      </svg>
+      <span>Escanear</span>
+    </button>
+
+    <button class="bottom-nav-item" id="navCalculatorBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="4" y="2" width="16" height="20" rx="2"></rect>
+        <line x1="8" y1="6" x2="16" y2="6"></line>
+        <line x1="16" y1="14" x2="16" y2="18"></line>
+        <path d="M16 10h.01"></path>
+        <path d="M12 10h.01"></path>
+        <path d="M8 10h.01"></path>
+        <path d="M12 14h.01"></path>
+        <path d="M8 14h.01"></path>
+        <path d="M12 18h.01"></path>
+        <path d="M8 18h.01"></path>
+      </svg>
+      <span>Calcular %</span>
+    </button>
+
+    <button class="bottom-nav-item" id="navExportBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      <span>Exportar</span>
+    </button>
+  </nav>
+
+  <!-- Barcode Scanner Modal with html5-qrcode -->
+  <div id="scannerModal" class="scanner-modal">
+    <div class="scanner-header">
+      <div class="scanner-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+          <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+          <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+          <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+        </svg>
+        <span>Escanear Código de Prenda</span>
+      </div>
+      <button id="closeScannerBtn" class="scanner-close-btn">&times;</button>
+    </div>
+
+    <!-- Scanner Viewport -->
+    <div class="scanner-viewport-wrapper">
+      <div id="reader"></div>
+      <div class="scanner-laser-line"></div>
+      <div class="scanner-corner corner-tl"></div>
+      <div class="scanner-corner corner-tr"></div>
+      <div class="scanner-corner corner-bl"></div>
+      <div class="scanner-corner corner-br"></div>
+    </div>
+
+    <div class="scanner-tip">
+      Centra la etiqueta con el código de barras en el visor
+    </div>
+
+    <div class="scanner-controls">
+      <div class="scanner-btn-row">
+        <button id="switchCameraBtn" class="scanner-tool-btn">
+          🔄 Cambiar Cámara
+        </button>
+        <button id="torchBtn" class="scanner-tool-btn">
+          🔦 Linterna
+        </button>
+      </div>
+
+      <!-- Quick Codes Simulator for Desktop testing -->
+      <div class="test-codes-box">
+        <div class="test-codes-title">Probar escaneo (códigos reales):</div>
+        <div class="test-codes-pills">
+          <button class="test-pill" onclick="simulateScan('4840114')">4840114 (Jean)</button>
+          <button class="test-pill" onclick="simulateScan('4094001')">4094001 (Calzado 2x1)</button>
+          <button class="test-pill" onclick="simulateScan('4900001')">4900001 (Remera 50%)</button>
+          <button class="test-pill" onclick="simulateScan('4794001')">4794001 (Calzado 40%)</button>
+          <button class="test-pill" onclick="simulateScan('4910005')">4910005 (Camisa 25%)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Global Discount Calculator Sheet -->
+  <div id="calcModal" class="calculator-modal">
+    <div class="calculator-sheet">
+      <div class="sheet-handle"></div>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+          <div class="sheet-title">Calculadora de Liquidaciones</div>
+          <div class="sheet-subtitle">Calculá rápido el precio con cualquier porcentaje</div>
+        </div>
+        <button id="closeCalcBtn" style="background:#F4F4F5; border:none; width:32px; height:32px; border-radius:50%; font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <label style="font-size:0.75rem; font-weight:700; color:#52525B; display:block; margin-bottom:6px;">PRECIO ORIGINAL (ETIQUETA):</label>
+        <div style="position:relative; display:flex; align-items:center;">
+          <span style="position:absolute; left:12px; font-weight:800; color:#71717A;">$</span>
+          <input type="number" id="calcOriginalPrice" class="inline-price-input" style="padding-left:28px; font-size:1.2rem;" placeholder="Ej: 50000" />
+        </div>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <label style="font-size:0.75rem; font-weight:700; color:#52525B; display:block; margin-bottom:6px;">PORCENTAJE DE DESCUENTO:</label>
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px;">
+          <button class="filter-chip discount-50" onclick="setCalcDiscount(50)" style="justify-content:center; padding:10px;">50% OFF</button>
+          <button class="filter-chip discount-40" onclick="setCalcDiscount(40)" style="justify-content:center; padding:10px;">40% OFF</button>
+          <button class="filter-chip discount-25" onclick="setCalcDiscount(25)" style="justify-content:center; padding:10px;">25% OFF</button>
+          <button class="filter-chip" onclick="setCalcDiscount(20)" style="justify-content:center; padding:10px;">20% OFF</button>
+        </div>
+      </div>
+
+      <div style="background:#FAF5FF; border:1px solid #E9D5FF; border-radius:16px; padding:16px; text-align:center;">
+        <div style="font-size:0.75rem; font-weight:700; color:#7E22CE; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;">
+          PRECIO FINAL A COBRAR
+        </div>
+        <div id="calcFinalResult" style="font-size:2rem; font-weight:800; color:#18181B;">
+          $ 0,00
+        </div>
+        <div id="calcSavingsResult" style="font-size:0.8rem; font-weight:600; color:#059669; margin-top:4px;">
+          Ahorro: $ 0,00
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info Modal / Google Sheets & Netlify -->
+  <div id="infoModal" class="info-modal">
+    <div class="info-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="font-size:1.15rem; font-weight:800; color:#18181B;">Ossira Gurruchaga PWA</div>
+        <button id="closeInfoBtn" style="background:#F4F4F5; border:none; width:32px; height:32px; border-radius:50%; font-size:1.1rem; cursor:pointer;">&times;</button>
+      </div>
+
+      <p style="font-size:0.85rem; color:#52525B; line-height:1.5; margin-bottom:14px;">
+        Aplicación progresiva para el equipo de ventas de <strong>Ossira Gurruchaga</strong>. Diseñada para operar ágilmente en el salón de ventas con lectura rápida de temporadas, tipologías, liquidaciones y escaneo de códigos de barra.
+      </p>
+
+      <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px; padding:12px; margin-bottom:14px;">
+        <div style="font-weight:700; font-size:0.8rem; color:#0F172A; margin-bottom:6px;">📊 Desglose de Códigos (7 dígitos):</div>
+        <ul style="font-size:0.76rem; color:#475569; padding-left:18px; line-height:1.6;">
+          <li><strong>Dígitos 1-2:</strong> Temporada (ej: 40 a 49)</li>
+          <li><strong>Dígitos 3-4:</strong> Tipología (94=Calzados, 00=Remeras, 10=Camisas, 40=Jean, 20=Vestidos, 41=Pantalón no jean, 60/70/82=Abrigos)</li>
+          <li><strong>Dígitos 5-7:</strong> Modelo</li>
+        </ul>
+      </div>
+
+      <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:12px; padding:12px; margin-bottom:14px;">
+        <div style="font-weight:700; font-size:0.8rem; color:#065F46; margin-bottom:4px;">🌐 Conexión futura a Google Sheets:</div>
+        <p style="font-size:0.75rem; color:#047857; line-height:1.4;">
+          El código contiene la función comentada <code>fetchGoogleSheetsData()</code> para sincronizar automáticamente el stock en vivo con la planilla de cálculo de la sucursal.
+        </p>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <button id="downloadHtmlBtn" style="background:#18181B; color:#FFFFFF; border:none; padding:12px; border-radius:12px; font-weight:700; font-size:0.85rem; cursor:pointer;">
+          📥 Descargar index.html autónomo (Listo para Netlify)
+        </button>
+        <button onclick="document.getElementById('infoModal').classList.remove('open')" style="background:#F4F4F5; border:1px solid #E4E4E7; padding:10px; border-radius:12px; font-weight:600; font-size:0.8rem; cursor:pointer;">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script>
+    // --- 1. BASE DE DATOS MOCKDATA (260 Artículos Reales de Ossira Gurruchaga) ---
+    const mockData = [
+  {
+    "code": "4094001",
+    "season": "40",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "001",
+    "originalPrice": "$39.900,00",
+    "originalPriceNum": 39900,
+    "discountPercent": 0,
+    "finalPrice": "$39.900,00",
+    "finalPriceNum": 39900,
+    "observations": "2x1"
+  },
+  {
+    "code": "4290100",
+    "season": "42",
+    "typologyCode": "90",
+    "typology": "OTRO",
+    "model": "100",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4290101",
+    "season": "42",
+    "typologyCode": "90",
+    "typology": "OTRO",
+    "model": "101",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4390044",
+    "season": "43",
+    "typologyCode": "90",
+    "typology": "OTRO",
+    "model": "044",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4390045",
+    "season": "43",
+    "typologyCode": "90",
+    "typology": "OTRO",
+    "model": "045",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4394007",
+    "season": "43",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "007",
+    "originalPrice": "$83.000,00",
+    "originalPriceNum": 83000,
+    "discountPercent": 40,
+    "finalPrice": "$49.800,00",
+    "finalPriceNum": 49800,
+    "observations": ""
+  },
+  {
+    "code": "4494003",
+    "season": "44",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "003",
+    "originalPrice": "$59.900,00",
+    "originalPriceNum": 59900,
+    "discountPercent": 40,
+    "finalPrice": "$35.940,00",
+    "finalPriceNum": 35940,
+    "observations": ""
+  },
+  {
+    "code": "4594002",
+    "season": "45",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "002",
+    "originalPrice": "$185.000,00",
+    "originalPriceNum": 185000,
+    "discountPercent": 40,
+    "finalPrice": "$111.000,00",
+    "finalPriceNum": 111000,
+    "observations": ""
+  },
+  {
+    "code": "4594005",
+    "season": "45",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "005",
+    "originalPrice": "$220.000,00",
+    "originalPriceNum": 220000,
+    "discountPercent": 40,
+    "finalPrice": "$132.000,00",
+    "finalPriceNum": 132000,
+    "observations": ""
+  },
+  {
+    "code": "4594006",
+    "season": "45",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "006",
+    "originalPrice": "$250.000,00",
+    "originalPriceNum": 250000,
+    "discountPercent": 40,
+    "finalPrice": "$150.000,00",
+    "finalPriceNum": 150000,
+    "observations": ""
+  },
+  {
+    "code": "4694001",
+    "season": "46",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "001",
+    "originalPrice": "$199.000,00",
+    "originalPriceNum": 199000,
+    "discountPercent": 40,
+    "finalPrice": "$119.400,00",
+    "finalPriceNum": 119400,
+    "observations": ""
+  },
+  {
+    "code": "4694002",
+    "season": "46",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "002",
+    "originalPrice": "$179.000,00",
+    "originalPriceNum": 179000,
+    "discountPercent": 40,
+    "finalPrice": "$107.400,00",
+    "finalPriceNum": 107400,
+    "observations": ""
+  },
+  {
+    "code": "4694003",
+    "season": "46",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "003",
+    "originalPrice": "$149.000,00",
+    "originalPriceNum": 149000,
+    "discountPercent": 40,
+    "finalPrice": "$89.400,00",
+    "finalPriceNum": 89400,
+    "observations": ""
+  },
+  {
+    "code": "4694004",
+    "season": "46",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "004",
+    "originalPrice": "$250.000,00",
+    "originalPriceNum": 250000,
+    "discountPercent": 40,
+    "finalPrice": "$150.000,00",
+    "finalPriceNum": 150000,
+    "observations": ""
+  },
+  {
+    "code": "4694005",
+    "season": "46",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "005",
+    "originalPrice": "$185.000,00",
+    "originalPriceNum": 185000,
+    "discountPercent": 40,
+    "finalPrice": "$111.000,00",
+    "finalPriceNum": 111000,
+    "observations": ""
+  },
+  {
+    "code": "4694006",
+    "season": "46",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "006",
+    "originalPrice": "$150.000,00",
+    "originalPriceNum": 150000,
+    "discountPercent": 40,
+    "finalPrice": "$90.000,00",
+    "finalPriceNum": 90000,
+    "observations": ""
+  },
+  {
+    "code": "4694007",
+    "season": "46",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "007",
+    "originalPrice": "$215.000,00",
+    "originalPriceNum": 215000,
+    "discountPercent": 40,
+    "finalPrice": "$129.000,00",
+    "finalPriceNum": 129000,
+    "observations": ""
+  },
+  {
+    "code": "4694008",
+    "season": "46",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "008",
+    "originalPrice": "$215.000,00",
+    "originalPriceNum": 215000,
+    "discountPercent": 40,
+    "finalPrice": "$129.000,00",
+    "finalPriceNum": 129000,
+    "observations": ""
+  },
+  {
+    "code": "4700020",
+    "season": "47",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "020",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4700008",
+    "season": "47",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "008",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4700012",
+    "season": "47",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "012",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4700026",
+    "season": "47",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "026",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4700035",
+    "season": "47",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "035",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4700039",
+    "season": "47",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "039",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4700040",
+    "season": "47",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "040",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4700041",
+    "season": "47",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "041",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4700409",
+    "season": "47",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "409",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4700601",
+    "season": "47",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "601",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4700603",
+    "season": "47",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "603",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4710002",
+    "season": "47",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "002",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4710004",
+    "season": "47",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "004",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4710005",
+    "season": "47",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "005",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4710007",
+    "season": "47",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "007",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4710010",
+    "season": "47",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "010",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4710013",
+    "season": "47",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "013",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4710018",
+    "season": "47",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "018",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4710019",
+    "season": "47",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "019",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4710202",
+    "season": "47",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "202",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4710205",
+    "season": "47",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "205",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4710214",
+    "season": "47",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "214",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4710401",
+    "season": "47",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "401",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4710406",
+    "season": "47",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "406",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4710417",
+    "season": "47",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "417",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4710419",
+    "season": "47",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "419",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4720003",
+    "season": "47",
+    "typologyCode": "20",
+    "typology": "VESTIDOS",
+    "model": "003",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4720004",
+    "season": "47",
+    "typologyCode": "20",
+    "typology": "VESTIDOS",
+    "model": "004",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4720005",
+    "season": "47",
+    "typologyCode": "20",
+    "typology": "VESTIDOS",
+    "model": "005",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4720006",
+    "season": "47",
+    "typologyCode": "20",
+    "typology": "VESTIDOS",
+    "model": "006",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4720007",
+    "season": "47",
+    "typologyCode": "20",
+    "typology": "VESTIDOS",
+    "model": "007",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4720008",
+    "season": "47",
+    "typologyCode": "20",
+    "typology": "VESTIDOS",
+    "model": "008",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740111",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "111",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740122",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "122",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740127",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "127",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740136",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "136",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740139",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "139",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740145",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "145",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740146",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "146",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740155",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "155",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740159",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "159",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740185",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "185",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740887",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "887",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740899",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "899",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740903",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "903",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740909",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "909",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740110",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "110",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740114",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "114",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740116",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "116",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740120",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "120",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740123",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "123",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740134",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "134",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740148",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "148",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740164",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "164",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740169",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "169",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740838",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "838",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4740857",
+    "season": "47",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "857",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4741006",
+    "season": "47",
+    "typologyCode": "41",
+    "typology": "PANTALON (NO JEAN)",
+    "model": "006",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4741015",
+    "season": "47",
+    "typologyCode": "41",
+    "typology": "PANTALON (NO JEAN)",
+    "model": "015",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4741018",
+    "season": "47",
+    "typologyCode": "41",
+    "typology": "PANTALON (NO JEAN)",
+    "model": "018",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4741023",
+    "season": "47",
+    "typologyCode": "41",
+    "typology": "PANTALON (NO JEAN)",
+    "model": "023",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4741001",
+    "season": "47",
+    "typologyCode": "41",
+    "typology": "PANTALON (NO JEAN)",
+    "model": "001",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4741003",
+    "season": "47",
+    "typologyCode": "41",
+    "typology": "PANTALON (NO JEAN)",
+    "model": "003",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4741004",
+    "season": "47",
+    "typologyCode": "41",
+    "typology": "PANTALON (NO JEAN)",
+    "model": "004",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4741024",
+    "season": "47",
+    "typologyCode": "41",
+    "typology": "PANTALON (NO JEAN)",
+    "model": "024",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4745001",
+    "season": "47",
+    "typologyCode": "45",
+    "typology": "OTRO",
+    "model": "001",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4760010",
+    "season": "47",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "010",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4760029",
+    "season": "47",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "029",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4770004",
+    "season": "47",
+    "typologyCode": "70",
+    "typology": "ABRIGOS",
+    "model": "004",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4782004",
+    "season": "47",
+    "typologyCode": "82",
+    "typology": "ABRIGOS",
+    "model": "004",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4782005",
+    "season": "47",
+    "typologyCode": "82",
+    "typology": "ABRIGOS",
+    "model": "005",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4782006",
+    "season": "47",
+    "typologyCode": "82",
+    "typology": "ABRIGOS",
+    "model": "006",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4782007",
+    "season": "47",
+    "typologyCode": "82",
+    "typology": "ABRIGOS",
+    "model": "007",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4782008",
+    "season": "47",
+    "typologyCode": "82",
+    "typology": "ABRIGOS",
+    "model": "008",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4782010",
+    "season": "47",
+    "typologyCode": "82",
+    "typology": "ABRIGOS",
+    "model": "010",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4782011",
+    "season": "47",
+    "typologyCode": "82",
+    "typology": "ABRIGOS",
+    "model": "011",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4782012",
+    "season": "47",
+    "typologyCode": "82",
+    "typology": "ABRIGOS",
+    "model": "012",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4782013",
+    "season": "47",
+    "typologyCode": "82",
+    "typology": "ABRIGOS",
+    "model": "013",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4782015",
+    "season": "47",
+    "typologyCode": "82",
+    "typology": "ABRIGOS",
+    "model": "015",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 40,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4794001",
+    "season": "47",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "001",
+    "originalPrice": "$350.000,00",
+    "originalPriceNum": 350000,
+    "discountPercent": 40,
+    "finalPrice": "$210.000,00",
+    "finalPriceNum": 210000,
+    "observations": ""
+  },
+  {
+    "code": "4794002",
+    "season": "47",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "002",
+    "originalPrice": "$250.000,00",
+    "originalPriceNum": 250000,
+    "discountPercent": 40,
+    "finalPrice": "$150.000,00",
+    "finalPriceNum": 150000,
+    "observations": ""
+  },
+  {
+    "code": "4794003",
+    "season": "47",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "003",
+    "originalPrice": "$340.000,00",
+    "originalPriceNum": 340000,
+    "discountPercent": 40,
+    "finalPrice": "$204.000,00",
+    "finalPriceNum": 204000,
+    "observations": ""
+  },
+  {
+    "code": "4794004",
+    "season": "47",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "004",
+    "originalPrice": "$360.000,00",
+    "originalPriceNum": 360000,
+    "discountPercent": 40,
+    "finalPrice": "$216.000,00",
+    "finalPriceNum": 216000,
+    "observations": ""
+  },
+  {
+    "code": "4794005",
+    "season": "47",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "005",
+    "originalPrice": "$300.000,00",
+    "originalPriceNum": 300000,
+    "discountPercent": 40,
+    "finalPrice": "$180.000,00",
+    "finalPriceNum": 180000,
+    "observations": ""
+  },
+  {
+    "code": "4794006",
+    "season": "47",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "006",
+    "originalPrice": "$320.000,00",
+    "originalPriceNum": 320000,
+    "discountPercent": 40,
+    "finalPrice": "$192.000,00",
+    "finalPriceNum": 192000,
+    "observations": ""
+  },
+  {
+    "code": "4794007",
+    "season": "47",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "007",
+    "originalPrice": "$240.000,00",
+    "originalPriceNum": 240000,
+    "discountPercent": 40,
+    "finalPrice": "$144.000,00",
+    "finalPriceNum": 144000,
+    "observations": ""
+  },
+  {
+    "code": "4794008",
+    "season": "47",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "008",
+    "originalPrice": "$250.000,00",
+    "originalPriceNum": 250000,
+    "discountPercent": 40,
+    "finalPrice": "$150.000,00",
+    "finalPriceNum": 150000,
+    "observations": ""
+  },
+  {
+    "code": "4800009",
+    "season": "48",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "009",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4800020",
+    "season": "48",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "020",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4800207",
+    "season": "48",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "207",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4830104",
+    "season": "48",
+    "typologyCode": "30",
+    "typology": "OTRO",
+    "model": "104",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4830105",
+    "season": "48",
+    "typologyCode": "30",
+    "typology": "OTRO",
+    "model": "105",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4830111",
+    "season": "48",
+    "typologyCode": "30",
+    "typology": "OTRO",
+    "model": "111",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4830114",
+    "season": "48",
+    "typologyCode": "30",
+    "typology": "OTRO",
+    "model": "114",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4830119",
+    "season": "48",
+    "typologyCode": "30",
+    "typology": "OTRO",
+    "model": "119",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840108",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "108",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840111",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "111",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840112",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "112",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840114",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "114",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840118",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "118",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840119",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "119",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840121",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "121",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840127",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "127",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840128",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "128",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840129",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "129",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840135",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "135",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840144",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "144",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840154",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "154",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840155",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "155",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840159",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "159",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840166",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "166",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840805",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "805",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840841",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "841",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840887",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "887",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4840903",
+    "season": "48",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "903",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4841006",
+    "season": "48",
+    "typologyCode": "41",
+    "typology": "PANTALON (NO JEAN)",
+    "model": "006",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4841017",
+    "season": "48",
+    "typologyCode": "41",
+    "typology": "PANTALON (NO JEAN)",
+    "model": "017",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4860005",
+    "season": "48",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "005",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4860010",
+    "season": "48",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "010",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4860023",
+    "season": "48",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "023",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4860012",
+    "season": "48",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "012",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4860026",
+    "season": "48",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "026",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4894001",
+    "season": "48",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "001",
+    "originalPrice": "$230.000,00",
+    "originalPriceNum": 230000,
+    "discountPercent": 40,
+    "finalPrice": "$138.000,00",
+    "finalPriceNum": 138000,
+    "observations": ""
+  },
+  {
+    "code": "4894002",
+    "season": "48",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "002",
+    "originalPrice": "$218.000,00",
+    "originalPriceNum": 218000,
+    "discountPercent": 40,
+    "finalPrice": "$130.800,00",
+    "finalPriceNum": 130800,
+    "observations": ""
+  },
+  {
+    "code": "4894003",
+    "season": "48",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "003",
+    "originalPrice": "$230.000,00",
+    "originalPriceNum": 230000,
+    "discountPercent": 40,
+    "finalPrice": "$138.000,00",
+    "finalPriceNum": 138000,
+    "observations": ""
+  },
+  {
+    "code": "4894006",
+    "season": "48",
+    "typologyCode": "94",
+    "typology": "CALZADOS",
+    "model": "006",
+    "originalPrice": "$320.000,00",
+    "originalPriceNum": 320000,
+    "discountPercent": 40,
+    "finalPrice": "$192.000,00",
+    "finalPriceNum": 192000,
+    "observations": ""
+  },
+  {
+    "code": "4900020",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "020",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900027",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "027",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900203",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "203",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900601",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "601",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900412",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "412",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900001",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "001",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900003",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "003",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900005",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "005",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900006",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "006",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900007",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "007",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900009",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "009",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900010",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "010",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900011",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "011",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900012",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "012",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900016",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "016",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900019",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "019",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900021",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "021",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900022",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "022",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900023",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "023",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900028",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "028",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900029",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "029",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900030",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "030",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900031",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "031",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900033",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "033",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900034",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "034",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900036",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "036",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900037",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "037",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900040",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "040",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900041",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "041",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900042",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "042",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900043",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "043",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900044",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "044",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900045",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "045",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900046",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "046",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900047",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "047",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900049",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "049",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900050",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "050",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900053",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "053",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900404",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "404",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900406",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "406",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900411",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "411",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4900413",
+    "season": "49",
+    "typologyCode": "00",
+    "typology": "REMERAS",
+    "model": "413",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910024",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "024",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910402",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "402",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910403",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "403",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910405",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "405",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910005",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "005",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910008",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "008",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910001",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "001",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910007",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "007",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910009",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "009",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910010",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "010",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910012",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "012",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910022",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "022",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910205",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "205",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910206",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "206",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910209",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "209",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910211",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "211",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910212",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "212",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910412",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "412",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910414",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "414",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4910416",
+    "season": "49",
+    "typologyCode": "10",
+    "typology": "CAMISAS",
+    "model": "416",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4920001",
+    "season": "49",
+    "typologyCode": "20",
+    "typology": "VESTIDOS",
+    "model": "001",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4920201",
+    "season": "49",
+    "typologyCode": "20",
+    "typology": "VESTIDOS",
+    "model": "201",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4920202",
+    "season": "49",
+    "typologyCode": "20",
+    "typology": "VESTIDOS",
+    "model": "202",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4940101",
+    "season": "49",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "101",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4940103",
+    "season": "49",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "103",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4940107",
+    "season": "49",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "107",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4940108",
+    "season": "49",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "108",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4940125",
+    "season": "49",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "125",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4940133",
+    "season": "49",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "133",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4940159",
+    "season": "49",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "159",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4940805",
+    "season": "49",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "805",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4940841",
+    "season": "49",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "841",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4940918",
+    "season": "49",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "918",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4940932",
+    "season": "49",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "932",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4940130",
+    "season": "49",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "130",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4940152",
+    "season": "49",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "152",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4940134",
+    "season": "49",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "134",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4940139",
+    "season": "49",
+    "typologyCode": "40",
+    "typology": "JEAN",
+    "model": "139",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4941020",
+    "season": "49",
+    "typologyCode": "41",
+    "typology": "PANTALON (NO JEAN)",
+    "model": "020",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4941011",
+    "season": "49",
+    "typologyCode": "41",
+    "typology": "PANTALON (NO JEAN)",
+    "model": "011",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4941012",
+    "season": "49",
+    "typologyCode": "41",
+    "typology": "PANTALON (NO JEAN)",
+    "model": "012",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4960005",
+    "season": "49",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "005",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4960010",
+    "season": "49",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "010",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 0,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4960027",
+    "season": "49",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "027",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4960028",
+    "season": "49",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "028",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4960033",
+    "season": "49",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "033",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4960034",
+    "season": "49",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "034",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4960037",
+    "season": "49",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "037",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4960039",
+    "season": "49",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "039",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4960008",
+    "season": "49",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "008",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4960018",
+    "season": "49",
+    "typologyCode": "60",
+    "typology": "ABRIGOS",
+    "model": "018",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4970003",
+    "season": "49",
+    "typologyCode": "70",
+    "typology": "ABRIGOS",
+    "model": "003",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4970005",
+    "season": "49",
+    "typologyCode": "70",
+    "typology": "ABRIGOS",
+    "model": "005",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4980002",
+    "season": "49",
+    "typologyCode": "80",
+    "typology": "OTRO",
+    "model": "002",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4980003",
+    "season": "49",
+    "typologyCode": "80",
+    "typology": "OTRO",
+    "model": "003",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4980004",
+    "season": "49",
+    "typologyCode": "80",
+    "typology": "OTRO",
+    "model": "004",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4982007",
+    "season": "49",
+    "typologyCode": "82",
+    "typology": "ABRIGOS",
+    "model": "007",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4982009",
+    "season": "49",
+    "typologyCode": "82",
+    "typology": "ABRIGOS",
+    "model": "009",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4982012",
+    "season": "49",
+    "typologyCode": "82",
+    "typology": "ABRIGOS",
+    "model": "012",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4982015",
+    "season": "49",
+    "typologyCode": "82",
+    "typology": "ABRIGOS",
+    "model": "015",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4982016",
+    "season": "49",
+    "typologyCode": "82",
+    "typology": "ABRIGOS",
+    "model": "016",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4990017",
+    "season": "49",
+    "typologyCode": "90",
+    "typology": "OTRO",
+    "model": "017",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4990018",
+    "season": "49",
+    "typologyCode": "90",
+    "typology": "OTRO",
+    "model": "018",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4990001",
+    "season": "49",
+    "typologyCode": "90",
+    "typology": "OTRO",
+    "model": "001",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4990004",
+    "season": "49",
+    "typologyCode": "90",
+    "typology": "OTRO",
+    "model": "004",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4990006",
+    "season": "49",
+    "typologyCode": "90",
+    "typology": "OTRO",
+    "model": "006",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4990007",
+    "season": "49",
+    "typologyCode": "90",
+    "typology": "OTRO",
+    "model": "007",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4990008",
+    "season": "49",
+    "typologyCode": "90",
+    "typology": "OTRO",
+    "model": "008",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4990009",
+    "season": "49",
+    "typologyCode": "90",
+    "typology": "OTRO",
+    "model": "009",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4990010",
+    "season": "49",
+    "typologyCode": "90",
+    "typology": "OTRO",
+    "model": "010",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4990011",
+    "season": "49",
+    "typologyCode": "90",
+    "typology": "OTRO",
+    "model": "011",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 50,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4991003",
+    "season": "49",
+    "typologyCode": "91",
+    "typology": "OTRO",
+    "model": "003",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4991004",
+    "season": "49",
+    "typologyCode": "91",
+    "typology": "OTRO",
+    "model": "004",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  },
+  {
+    "code": "4991006",
+    "season": "49",
+    "typologyCode": "91",
+    "typology": "OTRO",
+    "model": "006",
+    "originalPrice": null,
+    "originalPriceNum": null,
+    "discountPercent": 25,
+    "finalPrice": null,
+    "finalPriceNum": null,
+    "observations": ""
+  }
+];
+
+    // --- 2. MAPEO Y REGLAS DE NEGOCIO ---
+    const TYPOLOGY_MAP = {
+      '94': 'CALZADOS',
+      '00': 'REMERAS',
+      '10': 'CAMISAS',
+      '40': 'JEAN',
+      '20': 'VESTIDOS',
+      '41': 'PANTALON (NO JEAN)',
+      '60': 'ABRIGOS',
+      '70': 'ABRIGOS',
+      '82': 'ABRIGOS'
+    };
+
+    function resolveTypology(code, defaultTypo) {
+      if (code && code.length >= 4) {
+        const typoCode = code.substring(2, 4);
+        return TYPOLOGY_MAP[typoCode] || defaultTypo || 'OTRO';
+      }
+      return defaultTypo || 'OTRO';
+    }
+
+    function getTypologyBadgeClass(typology) {
+      const t = (typology || '').toUpperCase();
+      if (t.includes('JEAN') && !t.includes('NO JEAN')) return 'typo-jean';
+      if (t.includes('REMERA')) return 'typo-remeras';
+      if (t.includes('CALZADO')) return 'typo-calzados';
+      if (t.includes('CAMISA')) return 'typo-camisas';
+      if (t.includes('VESTIDO')) return 'typo-vestidos';
+      if (t.includes('ABRIGO')) return 'typo-abrigos';
+      if (t.includes('PANTALON')) return 'typo-pantalon';
+      return 'typo-otro';
+    }
+
+    function getDiscountBadgeClass(discount) {
+      if (discount >= 50) return 'badge-50';
+      if (discount >= 40) return 'badge-40';
+      if (discount >= 20) return 'badge-25';
+      return 'badge-0';
+    }
+
+    function formatCurrency(number) {
+      if (number === null || number === undefined || isNaN(number)) return '';
+      return '$' + Math.round(number).toLocaleString('es-AR') + ',00';
+    }
+
+    // --- 3. CONEXIÓN A GOOGLE SHEETS (Función comentada lista para producción) ---
+    /*
+    async function fetchGoogleSheetsData(sheetId, gid = '0') {
+      // Para conectar la planilla de Google Sheets del local:
+      // 1. En Google Sheets, ir a Archivo -> Compartir -> Publicar en la web -> Formato CSV.
+      // 2. O utilizar la URL pública de visualización en CSV:
+      const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+      
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Error al conectar con Google Sheets');
+        const csvText = await response.text();
+        
+        // Parsear el CSV resultante:
+        // const lines = csvText.split('\n');
+        // ... iterar columnas e inyectar en mockData ...
+        console.log('Datos actualizados exitosamente desde Google Sheets');
+        showToast('Stock sincronizado con Google Sheets');
+      } catch (err) {
+        console.error('Fallo en sincronización Google Sheets:', err);
+        showToast('Error al conectar con Google Sheets');
+      }
+    }
+    */
+
+    // --- 4. ESTADO DE LA APLICACIÓN ---
+    let currentFilter = 'all';
+    let currentSearchTerm = '';
+    let currentSort = 'code_asc';
+    let highlightedCode = null;
+    let html5QrCode = null;
+    let isScanning = false;
+    let currentFacingMode = 'environment';
+    let simulatedPrices = {}; // almacena precios manuales en memoria
+
+    // Cargar precios guardados en localStorage si existen
+    try {
+      const saved = localStorage.getItem('ossira_simulated_prices');
+      if (saved) simulatedPrices = JSON.parse(saved);
+    } catch(e) {}
+
+    // Audio Context para beep sintetizado sin dependencias de red
+    let audioCtx = null;
+    function playBeep() {
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime); // 880Hz (La)
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+      } catch(e) {
+        console.warn('Audio feedback error', e);
+      }
+    }
+
+    function showToast(text, icon = '✨') {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastText').innerText = text;
+      document.getElementById('toastIcon').innerText = icon;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2500);
+    }
+
+    // --- 5. RENDERIZADO DE PRODUCTOS ---
+    function renderProducts() {
+      const container = document.getElementById('productsList');
+      const countEl = document.getElementById('itemCount');
+      const totalEl = document.getElementById('totalCount');
+      totalEl.innerText = mockData.length;
+
+      // Filtrado
+      let filtered = mockData.filter(item => {
+        // Filtro por chips
+        if (currentFilter.startsWith('discount:')) {
+          const targetDisc = parseInt(currentFilter.split(':')[1], 10);
+          if (item.discountPercent !== targetDisc) return false;
+        } else if (currentFilter.startsWith('typo:')) {
+          const targetTypo = currentFilter.split(':')[1];
+          if ((item.typology || '').toUpperCase() !== targetTypo) return false;
+        } else if (currentFilter.startsWith('season:')) {
+          const targetSeason = currentFilter.split(':')[1];
+          if (item.season !== targetSeason) return false;
+        } else if (currentFilter === 'promo:2x1') {
+          if (!(item.observations || '').toLowerCase().includes('2x1')) return false;
+        }
+
+        // Filtro por buscador en tiempo real
+        if (currentSearchTerm) {
+          const q = currentSearchTerm.toLowerCase().trim();
+          const matchCode = (item.code || '').toLowerCase().includes(q);
+          const matchSeason = ('temporada ' + item.season).includes(q) || item.season.includes(q);
+          const matchTypo = (item.typology || '').toLowerCase().includes(q);
+          const matchModel = (item.model || '').toLowerCase().includes(q);
+          const matchObs = (item.observations || '').toLowerCase().includes(q);
+          const matchDisc = (item.discountPercent + '%').includes(q) || (item.discountPercent + '').includes(q);
+          
+          if (!matchCode && !matchSeason && !matchTypo && !matchModel && !matchObs && !matchDisc) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+
+      // Ordenamiento
+      filtered.sort((a, b) => {
+        if (currentSort === 'code_asc') return a.code.localeCompare(b.code);
+        if (currentSort === 'code_desc') return b.code.localeCompare(a.code);
+        if (currentSort === 'discount_desc') return b.discountPercent - a.discountPercent;
+        if (currentSort === 'discount_asc') return a.discountPercent - b.discountPercent;
+        if (currentSort === 'season_desc') return parseInt(b.season || 0) - parseInt(a.season || 0);
+        if (currentSort === 'price_asc') {
+          const pa = a.finalPriceNum || a.originalPriceNum || 999999;
+          const pb = b.finalPriceNum || b.originalPriceNum || 999999;
+          return pa - pb;
+        }
+        if (currentSort === 'price_desc') {
+          const pa = a.finalPriceNum || a.originalPriceNum || 0;
+          const pb = b.finalPriceNum || b.originalPriceNum || 0;
+          return pb - pa;
+        }
+        return 0;
+      });
+
+      countEl.innerText = filtered.length;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">🔍</div>
+            <div class="empty-title">Sin resultados</div>
+            <div class="empty-desc">No se encontraron artículos para "<strong>${escapeHtml(currentSearchTerm)}</strong>" o el filtro aplicado.</div>
+            <button class="reset-filters-btn" onclick="resetAllFilters()">Mostrar todos los artículos</button>
+          </div>
+        `;
+        return;
+      }
+
+      const cardsHtml = filtered.map(item => {
+        const typoClass = getTypologyBadgeClass(item.typology);
+        const discBadgeClass = getDiscountBadgeClass(item.discountPercent);
+        const isHighlight = highlightedCode && item.code === highlightedCode;
+
+        // Cálculo de precios
+        let origPrice = item.originalPrice;
+        let finalPrice = item.finalPrice;
+        let savingsText = '';
+        let hasFixedPrice = !!item.originalPriceNum;
+
+        // Chequear si hay precio simulado ingresado por el vendedor
+        if (!hasFixedPrice && simulatedPrices[item.code]) {
+          const simBase = simulatedPrices[item.code];
+          const simFinal = Math.round(simBase * (1 - (item.discountPercent / 100)));
+          origPrice = formatCurrency(simBase);
+          finalPrice = formatCurrency(simFinal);
+          if (item.discountPercent > 0) {
+            savingsText = 'Ahorro: ' + formatCurrency(simBase - simFinal);
+          }
+        } else if (hasFixedPrice && item.discountPercent > 0) {
+          const diff = item.originalPriceNum - (item.finalPriceNum || 0);
+          if (diff > 0) {
+            savingsText = 'Ahorro: ' + formatCurrency(diff);
+          }
+        }
+
+        const promoHtml = item.observations 
+          ? `<span class="promo-tag">⭐ ${escapeHtml(item.observations)}</span>`
+          : '';
+
+        return `
+          <article class="product-card ${isHighlight ? 'scanned-highlight' : ''}" id="card-${item.code}">
+            <!-- Top row with code and badges -->
+            <div class="card-top-row">
+              <div class="code-badge-group">
+                <span class="article-code">${item.code}</span>
+                <button class="copy-code-btn" onclick="copyToClipboard('${item.code}')" title="Copiar código">
+                  📋
+                </button>
+                ${promoHtml}
+              </div>
+              <span class="typology-tag ${typoClass}">
+                ${escapeHtml(item.typology)}
+              </span>
+            </div>
+
+            <!-- Code Logic breakdown: Temporada | Tipología | Modelo -->
+            <div class="code-breakdown">
+              <span class="breakdown-item">
+                <span class="breakdown-label">Temporada:</span>
+                <span class="breakdown-val">${item.season}</span>
+              </span>
+              <span class="breakdown-item">
+                <span class="breakdown-label">Tipología:</span>
+                <span class="breakdown-val">${item.typologyCode} (${escapeHtml(item.typology)})</span>
+              </span>
+              <span class="breakdown-item">
+                <span class="breakdown-label">Modelo:</span>
+                <span class="breakdown-val">${item.model}</span>
+              </span>
+            </div>
+
+            <!-- Price section -->
+            <div class="card-price-section">
+              <div class="price-left">
+                ${origPrice ? `
+                  <div class="price-original-row">
+                    <span>Etiqueta:</span>
+                    <span class="original-price-strike">${origPrice}</span>
+                  </div>
+                ` : `
+                  <div class="price-original-row">
+                    <span>Precio base:</span>
+                    <span style="color:#A1A1AA; font-style:italic;">A calcular en etiqueta</span>
+                  </div>
+                `}
+
+                <div class="price-final-row">
+                  <span class="price-final-label">Final:</span>
+                  <span class="price-final-amount">${finalPrice || 'Consulte'}</span>
+                </div>
+
+                ${savingsText ? `<span class="savings-pill">${savingsText}</span>` : ''}
+              </div>
+
+              <!-- Discount badge -->
+              <div class="discount-badge-large ${discBadgeClass}">
+                <span>${item.discountPercent}%</span>
+                <span style="font-size: 0.62rem; text-transform: uppercase; font-weight:700;">OFF</span>
+              </div>
+            </div>
+
+            <!-- If item does not have original price in CSV, show quick inline simulator -->
+            ${!hasFixedPrice ? `
+              <div class="inline-calc-box">
+                <div class="inline-calc-header">
+                  <span>💡 Calcular con precio de etiqueta:</span>
+                  <span>-${item.discountPercent}%</span>
+                </div>
+                <div class="inline-calc-inputs">
+                  <span style="font-weight:700; color:#64748B;">$</span>
+                  <input 
+                    type="number" 
+                    class="inline-price-input" 
+                    placeholder="Ej: 45000" 
+                    value="${simulatedPrices[item.code] || ''}"
+                    oninput="handleInlineCalc('${item.code}', ${item.discountPercent}, this.value)"
+                  />
+                  <span class="inline-calc-result" id="sim-res-${item.code}">
+                    ${simulatedPrices[item.code] ? formatCurrency(Math.round(simulatedPrices[item.code] * (1 - item.discountPercent/100))) : ''}
+                  </span>
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- Bottom Action Buttons for sales floor -->
+            <div class="card-actions" style="margin-top: 10px;">
+              <button class="action-btn" onclick="openItemQuickCalc('${item.code}', ${item.originalPriceNum || 0}, ${item.discountPercent})">
+                🧮 Simular otro %
+              </button>
+              <button class="action-btn whatsapp-btn" onclick="shareViaWhatsApp('${item.code}', '${item.typology}', '${item.model}', '${finalPrice || ''}', ${item.discountPercent})">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z"/>
+                </svg>
+                <span>Enviar detalle</span>
+              </button>
+            </div>
+          </article>
+        `;
+      }).join('');
+
+      container.innerHTML = cardsHtml;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Código ' + text + ' copiado al portapapeles');
+      }).catch(() => {
+        showToast('Código: ' + text);
+      });
+    }
+
+    function handleInlineCalc(code, discount, value) {
+      const num = parseFloat(value);
+      const resEl = document.getElementById('sim-res-' + code);
+      if (!num || isNaN(num) || num <= 0) {
+        delete simulatedPrices[code];
+        if (resEl) resEl.innerText = '';
+      } else {
+        simulatedPrices[code] = num;
+        const finalVal = Math.round(num * (1 - (discount / 100)));
+        if (resEl) resEl.innerText = '= ' + formatCurrency(finalVal);
+      }
+      try {
+        localStorage.setItem('ossira_simulated_prices', JSON.stringify(simulatedPrices));
+      } catch(e) {}
+    }
+
+    function shareViaWhatsApp(code, typology, model, price, discount) {
+      const msg = 
+`✨ *OSSIRA GURRUCHAGA* ✨
+👗 *Prenda:* ${typology} (Mod. ${model})
+🏷️ *Código:* ${code}
+🔥 *Descuento:* ${discount}% OFF
+💰 *Precio Final:* ${price || 'Consulte en local'}
+
+📍 Gurruchaga, Palermo Soho`;
+
+      const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(msg);
+      window.open(url, '_blank');
+    }
+
+    function resetAllFilters() {
+      currentFilter = 'all';
+      currentSearchTerm = '';
+      document.getElementById('searchInput').value = '';
+      document.getElementById('clearSearchBtn').classList.remove('visible');
+      document.querySelectorAll('.filter-chip').forEach(c => {
+        c.classList.toggle('active', c.getAttribute('data-filter') === 'all');
+      });
+      renderProducts();
+    }
+
+    // --- 6. ESCÁNER DE CÓDIGO DE BARRAS (HTML5-QRCode) ---
+    function openScanner() {
+      const modal = document.getElementById('scannerModal');
+      modal.classList.add('open');
+      startCamera();
+    }
+
+    function closeScanner() {
+      stopCamera();
+      const modal = document.getElementById('scannerModal');
+      modal.classList.remove('open');
+    }
+
+    async function startCamera() {
+      if (isScanning) return;
+      try {
+        if (!html5QrCode) {
+          html5QrCode = new Html5Qrcode("reader");
+        }
+
+        const config = {
+          fps: 15,
+          qrbox: { width: 300, height: 160 },
+          aspectRatio: 1.333333
+        };
+
+        await html5QrCode.start(
+          { facingMode: currentFacingMode },
+          config,
+          (decodedText) => {
+            onBarcodeDetected(decodedText);
+          },
+          (errorMessage) => {
+            // escaneando activamente...
+          }
+        );
+        isScanning = true;
+      } catch (err) {
+        console.warn('Error al iniciar la cámara:', err);
+        showToast('Permiso de cámara denegado o no disponible', '⚠️');
+      }
+    }
+
+    async function stopCamera() {
+      if (html5QrCode && isScanning) {
+        try {
+          await html5QrCode.stop();
+          isScanning = false;
+        } catch (e) {
+          console.warn('Error stopping scanner:', e);
+        }
+      }
+    }
+
+    async function switchCamera() {
+      await stopCamera();
+      currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+      await startCamera();
+      showToast('Cámara cambiada a: ' + (currentFacingMode === 'environment' ? 'Trasera' : 'Frontal'));
+    }
+
+    let torchOn = false;
+    async function toggleTorch() {
+      if (!isScanning) return;
+      try {
+        const stream = html5QrCode.getRunningTrackCameraCapabilities();
+        if (stream && stream.torchFeature().isSupported()) {
+          torchOn = !torchOn;
+          await stream.torchFeature().apply(torchOn);
+          showToast(torchOn ? 'Linterna encendida' : 'Linterna apagada', '🔦');
+        } else {
+          showToast('Linterna no soportada en este dispositivo', 'ℹ️');
+        }
+      } catch(e) {
+        showToast('Linterna no disponible', 'ℹ️');
+      }
+    }
+
+    function onBarcodeDetected(codeText) {
+      playBeep();
+      if (navigator.vibrate) {
+        navigator.vibrate([100, 50, 100]);
+      }
+      closeScanner();
+      handleScanResult(codeText);
+    }
+
+    function simulateScan(code) {
+      onBarcodeDetected(code);
+    }
+
+    function handleScanResult(codeText) {
+      // Si el código de barras tiene caracteres extra, extraer los 7 dígitos
+      let cleanCode = codeText.trim();
+      const match7 = cleanCode.match(/\d{7}/);
+      if (match7) {
+        cleanCode = match7[0];
+      }
+
+      currentSearchTerm = cleanCode;
+      highlightedCode = cleanCode;
+      
+      const searchInput = document.getElementById('searchInput');
+      searchInput.value = cleanCode;
+      document.getElementById('clearSearchBtn').classList.add('visible');
+
+      // Limpiar filtros rápidos para buscar globalmente
+      currentFilter = 'all';
+      document.querySelectorAll('.filter-chip').forEach(c => {
+        c.classList.toggle('active', c.getAttribute('data-filter') === 'all');
+      });
+
+      renderProducts();
+      showToast('Código detectado: ' + cleanCode, '✅');
+
+      // Hacer scroll hasta el artículo si existe
+      setTimeout(() => {
+        const card = document.getElementById('card-' + cleanCode);
+        if (card) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 200);
+
+      // Quitar destaque luego de 4 segundos
+      setTimeout(() => {
+        highlightedCode = null;
+        const card = document.getElementById('card-' + cleanCode);
+        if (card) card.classList.remove('scanned-highlight');
+      }, 4000);
+    }
+
+    // --- 7. CALCULADORA GLOBAL ---
+    let activeCalcDiscount = 50;
+
+    function openQuickCalc() {
+      document.getElementById('calcModal').classList.add('open');
+      recalcGlobal();
+    }
+
+    function closeQuickCalc() {
+      document.getElementById('calcModal').classList.remove('open');
+    }
+
+    function setCalcDiscount(d) {
+      activeCalcDiscount = d;
+      recalcGlobal();
+    }
+
+    function openItemQuickCalc(code, basePrice, discount) {
+      const input = document.getElementById('calcOriginalPrice');
+      if (basePrice > 0) {
+        input.value = basePrice;
+      } else if (simulatedPrices[code]) {
+        input.value = simulatedPrices[code];
+      } else {
+        input.value = '';
+      }
+      activeCalcDiscount = discount || 40;
+      openQuickCalc();
+    }
+
+    function recalcGlobal() {
+      const orig = parseFloat(document.getElementById('calcOriginalPrice').value) || 0;
+      const finalRes = Math.round(orig * (1 - (activeCalcDiscount / 100)));
+      const savings = orig - finalRes;
+
+      document.getElementById('calcFinalResult').innerText = formatCurrency(finalRes);
+      document.getElementById('calcSavingsResult').innerText = 'Ahorro (' + activeCalcDiscount + '% OFF): ' + formatCurrency(savings);
+    }
+
+    // --- 8. DESCARGA DEL ARCHIVO INDEX.HTML PARA NETLIFY ---
+    function downloadStandaloneHtml() {
+      const fullHtml = document.documentElement.outerHTML;
+      const blob = new Blob(['<!DOCTYPE html>\n' + fullHtml], { type: 'text/html;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'index.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast('Descargando index.html para Netlify', '📥');
+    }
+
+    // --- 9. EVENT LISTENERS & INICIALIZACIÓN ---
+    document.addEventListener('DOMContentLoaded', () => {
+      renderProducts();
+
+      // Buscador
+      const searchInput = document.getElementById('searchInput');
+      const clearBtn = document.getElementById('clearSearchBtn');
+
+      searchInput.addEventListener('input', (e) => {
+        currentSearchTerm = e.target.value;
+        clearBtn.classList.toggle('visible', currentSearchTerm.length > 0);
+        renderProducts();
+      });
+
+      clearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        currentSearchTerm = '';
+        clearBtn.classList.remove('visible');
+        renderProducts();
+        searchInput.focus();
+      });
+
+      // Filter chips
+      const chips = document.querySelectorAll('.filter-chip');
+      chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+          chips.forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          currentFilter = chip.getAttribute('data-filter');
+          renderProducts();
+        });
+      });
+
+      // Sort
+      document.getElementById('sortSelect').addEventListener('change', (e) => {
+        currentSort = e.target.value;
+        renderProducts();
+      });
+
+      // Scanner modal triggers
+      document.getElementById('cameraScanBtn').addEventListener('click', openScanner);
+      document.getElementById('navScanBtn').addEventListener('click', openScanner);
+      document.getElementById('closeScannerBtn').addEventListener('click', closeScanner);
+      document.getElementById('switchCameraBtn').addEventListener('click', switchCamera);
+      document.getElementById('torchBtn').addEventListener('click', toggleTorch);
+
+      // Calculator triggers
+      document.getElementById('calcHeaderBtn').addEventListener('click', openQuickCalc);
+      document.getElementById('navCalculatorBtn').addEventListener('click', openQuickCalc);
+      document.getElementById('closeCalcBtn').addEventListener('click', closeQuickCalc);
+      document.getElementById('calcOriginalPrice').addEventListener('input', recalcGlobal);
+
+      // Info modal & Export triggers
+      document.getElementById('infoBtn').addEventListener('click', () => {
+        document.getElementById('infoModal').classList.add('open');
+      });
+      document.getElementById('closeInfoBtn').addEventListener('click', () => {
+        document.getElementById('infoModal').classList.remove('open');
+      });
+      document.getElementById('navExportBtn').addEventListener('click', () => {
+        document.getElementById('infoModal').classList.add('open');
+      });
+      document.getElementById('downloadHtmlBtn').addEventListener('click', downloadStandaloneHtml);
+
+      document.getElementById('navAllItems').addEventListener('click', resetAllFilters);
+
+      // PWA Service Worker Registration
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(err => {
+            console.log('ServiceWorker not registered in current domain:', err);
+          });
+        });
+      }
+
+      // PWA Install Prompt
+      let deferredPrompt = null;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        const banner = document.getElementById('pwaBanner');
+        if (banner) banner.classList.add('visible');
+      });
+
+      document.getElementById('pwaInstallBtn')?.addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === 'accepted') {
+            document.getElementById('pwaBanner').style.display = 'none';
+          }
+          deferredPrompt = null;
+        } else {
+          showToast('Para instalar: Menú de navegador -> Agregar a pantalla principal');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
